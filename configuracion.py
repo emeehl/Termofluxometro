@@ -15,7 +15,13 @@ resultados = {'minutal':      xeral + 'resultados/minutal',
               'dezminutal':   xeral + 'resultados/dezminutal',
               'instantaneo':   xeral + 'resultados/instantaneo', 
               'resume':        xeral + 'resultados/resume'}
+erros =      {'minutal':      xeral + 'erros/minutal',
+              'dezminutal':   xeral + 'erros/dezminutal',
+              'instantaneo':   xeral + 'erros/instantaneo', 
+              'resume':        xeral + 'erros/resume'}
 xestion = {'ordes': xeral + 'ordes'} #Posibles ordes: empezar, pausar, enviar1min, enviar10min,
                          #                enviarThing, enviarResume
 ordes = ['recibir', 'pausar', 'enviar', 'enviar1min', 'enviar10min', \
          'enviarResume', 'enviarInst']
+         
+difMinimaTemp = {'difMinima': xeral + 'diferenciaMinima'}

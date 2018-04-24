@@ -1,0 +1,13 @@
+[Unit]
+Description=Transmitancia termica dun cerramento
+Wants=network.target
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/home/pi/Documents/transmitancia/transmitancia.py
+Restart=on-abort
+
+[Install]
+WantedBy=multi-user.target
+

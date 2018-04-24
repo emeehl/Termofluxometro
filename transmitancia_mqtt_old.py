@@ -8,7 +8,7 @@ Created on Thu Oct 26 12:19:22 2017
 
 import paho.mqtt.client as mqtt
 from Datos import Datos
-from configuracion import xeral, sensores, resultados, erros, xestion, ordes, difMinimaTemp
+from configuracion import xeral, sensores, resultados, xestion, ordes
 import re
 import datetime as dt
 import http.client, urllib
@@ -16,52 +16,33 @@ import time as t
 
 #t.sleep(20)
 
-#import logging
-#import logging.handlers
-#import sys
-#
-#LOG_FILENAME = "/tmp/transmitancia.log"
-#LOG_LEVEL = logging.INFO
-#
-#logger = logging.getLogger(__name__)
-#logger.setLevel(LOG_LEVEL)
-#handler = logging.handlers.TimedRotatingFileHandler(LOG_FILENAME, \
-#            when="midnight", backupCount=3)
-#formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(message)s')
-#handler.setFormatter(formatter)
-#logger.addHandler(handler)
-#
-#class MyLogger(object):
-#    def __init__(self, logger, level):
-#        self.logger = logger
-#        self.level = level
-#        
-#    def write(self, message):
-#        if message.rstrip() != "":
-#            self.logger.log(self.level, message.rstrip())
-#            
-#            
-#sys.stdout = MyLogger(logger, logging.INFO)
-#sys.stderr = MyLogger(logger, logging.ERROR)
+import logging
+import logging.handlers
+import sys
 
-import logging, datetime, time
+LOG_FILENAME = "/tmp/transmitancia.log"
+LOG_LEVEL = logging.INFO
 
-LOG_FILENAME = '/tmp/transmitancia.log'
-LOG_LEVEL = logging.DEBUG
-
-#Crear o logger e conectarse a el
-logger = logging.getLogger('Termoflux')
+logger = logging.getLogger(__name__)
 logger.setLevel(LOG_LEVEL)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(message)s', \
-                datefmt = '%Y%m%d %H:%M:%S')
+handler = logging.handlers.TimedRotatingFileHandler(LOG_FILENAME, \
+            when="midnight", backupCount=3)
+formatter = logging.Formatter('%(asctime)s %(levelname)-8s 5(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
-#Crear manipulador do logging, formato, etc
-fh = logging.FileHandler(LOG_FILENAME)
-fh.setLevel(LOG_LEVEL)
-fh.setFormatter(formatter)
+class MyLogger(object):
+    def __init__(self, logger, level):
+        self.logger = logger
+        self.level = level
+        
+    def write(self, message):
+        if message.rstrip() != "":
+            self.logger.log(self.level, message.restrip())
+            
+sys.stdout = MyLogger(logger, logging.INFO)
+sys.stderr = MyLogger(logger, logging.ERROR)
 
-#Conectar o manipulador co logger
-logger.addHandler(fh)
 
 ## Canais (topics)
 #xeral = 'emeehl/transmitancia/'
@@ -89,14 +70,12 @@ recibirOk = False
 enviando = False
 
 def on_connect(client, userdata, flags, rc):
-    logger.debug('Empezando on_connect()')
     global minutal
-    logger.debug("Conectado co rc: " + str(rc))
+    print("Conectado co rc: " + str(rc))
     # Cada vez que conecta co servidor mqtt
     client.subscribe(xeral + "#")            # Suscribimos a todas as canles
-#    client.publish(xestion['ordes'], 'pausar')        # Estado a Off. Agardamos sinal de On
+    client.publish(xestion['ordes'], 'pausar')        # Estado a Off. Agardamos sinal de On
     minutal = dt.datetime.utcnow().minute    # Actualizamos tempo de referencia
-    logger.debug('Rematando on_connect()')
 
 
 def on_message(client, userdata, msg):
@@ -105,19 +84,16 @@ def on_message(client, userdata, msg):
     agora = now.strftime("%Y%m%d_%H%M")
     topic = str(msg.topic); mensaxe = msg.payload.decode('utf-8')
     if(topic in xestion.values() and mensaxe in ordes):
-        logger.info('Mensaxe recibida')
+        sys.stdout.write('Mensaxe recibida')
         if('pausar' in mensaxe):
             recibirOk = False
         elif('recibir' in mensaxe):
             minutal = dt.datetime.utcnow().minute    # Actualizamos tempo de referencia
             recibirOk = True
+            print('Recibindo ok')
             logger.info('Recibindo ok')
         elif('enviar' in mensaxe):
             enviar(mensaxe)
-    elif(topic in difMinimaTemp.values()):
-#        difMinima = re.findall(r'-{0,1}\d+.\d+', mensaxe)
-#        difMinima = float(difMinima)
-        temps.setDiferenciaMinima(float(mensaxe))
     elif(recibirOk and topic in sensores.values()):
         valores_raw = re.findall(r'-{0,1}\d+.\d+', mensaxe)
         valores = [float(i) for i in valores_raw]
@@ -138,11 +114,11 @@ def on_message(client, userdata, msg):
         # Como cada vez que se envía unha solicitude de minutal, actulízase o
         # tempo ao minuto seguinte, avalíase antes se o minuto é de fin de 
         # dezminutal, para solicitar o mesmo.
-        #print('enviando: ', enviando, ' minutal: ', minutal, ' now.minute-2: ', \
-        #      (now.minute-2)%60, ' ok? ', not enviando and minutal == (now.minute-2)%60)
-        mssg_log = 'enviando: ' + str(enviando) + ' minutal: ' + str(minutal) + \
-                   ' now.minute-2: '+ str((now.minute-2)%60) + ' ok? ' + \
-                    str(not enviando and minutal == (now.minute-2)%60)
+        print('enviando: ', enviando, ' minutal: ', minutal, ' now.minute-2: ', \
+              (now.minute-2)%60, ' ok? ', not enviando and minutal == (now.minute-2)%60)
+        mssg_log = 'enviando: ' + enviando, ' minutal: ' + minutal, ' now.minute-2: '+ \
+                    (now.minute-2)%60 + ' ok? ' + \
+                    (not enviando and minutal == (now.minute-2)%60)
         logger.info(mssg_log)
         if(not enviando and minutal == (now.minute-2) % 60): #Envía minutal cun minuto de retraso
             enviando = True
@@ -165,15 +141,11 @@ def enviar(entrada):
 def enviarInst():
     global temps, minutal
     data = dt.datetime.utcnow().strftime("%Y%m%d_%H") + '{:02}'.format(minutal)
-    transmitancia, erro = temps.calcularTransmitancia(data, fluxo='horizontal')
+    transmitancia = temps.calcularTransmitancia(data, fluxo='horizontal')
 #    condicion = (temps['data'] == data)
 #    transmitancia = calcularTransmitancia(temps[condicion])
     if(not transmitancia is None):
         client.publish(resultados['instantaneo'], transmitancia)
-    else:
-        pass
-    if(not erro is None):
-        client.publish(erros['instantaneo'], erro)
     else:
         pass
 
@@ -191,16 +163,12 @@ def enviar1min():
     '''
     global temps, minutal, enviando
     data = dt.datetime.utcnow().strftime("%Y%m%d_%H") + '{:02}'.format(minutal)
-    transmitancia, erro = temps.calcularTransmitancia(data, fluxo='horizontal')
+    transmitancia = temps.calcularTransmitancia(data, fluxo='horizontal')
 #    condicion = (temps['data'] == data)
 #    transmitancia = calcularTransmitancia(temps[condicion])
     if(not transmitancia is None):
         client.publish(resultados['minutal'], transmitancia)
         enviarThing(transmitancia)
-    else:
-        pass
-    if(not erro is None):
-        client.publish(erros['minutal'], erro)
     else:
         pass
     minutal = (minutal + 1) % 60
@@ -217,15 +185,11 @@ def enviar10min():
     global temps, minutal
     data = dt.datetime.utcnow().strftime('%Y%m%d_%H')
     datas = [data + '{:02}'.format(m) for m in list(range(minutal, minutal-10, -9))]
-    transmitancia, erro = temps.calcularTransmitancia(datas, fluxo='horizontal')
+    transmitancia = temps.calcularTransmitancia(datas, fluxo='horizontal')
 #    condicion = (temps['data'] >= datas[1]) & (temps['data'] <= datas[0])
 #    transmitancia = calcularTransmitancia(temps[condicion])
     if(not transmitancia is None):
         client.publish(resultados['dezminutal'], transmitancia)
-    else:
-        pass
-    if(not erro is None):
-        client.publish(erros['dezminutal'], erro)
     else:
         pass
 
@@ -243,9 +207,9 @@ def enviarThing(valor):
     try:
         conn.request("POST", "/update", params, headers)
         response = conn.getresponse()
-        logger.info('Resposta thingspeak.com: ' + response.status + response.reason)
+        print(response.status, response.reason)
         data = response.read()
-        logger.info(data)
+        print(data)
         conn.close()
     except:
         pass
@@ -260,14 +224,10 @@ def enviarResume():
     '''
     global temps
     datas = None
-    transmitancia, erro = temps.calcularTransmitancia(datas, fluxo='horizontal')
+    transmitancia = temps.calcularTransmitancia(datas, fluxo='horizontal')
 #    transmitancia = calcularTransmitancia(temps)
     if(not transmitancia is None):
         client.publish(resultados['resume'], transmitancia)
-    else:
-        pass
-    if(not erro is None):
-        client.publish(erros['resume'], erro)
     else:
         pass
 
@@ -301,19 +261,12 @@ def enviarResume():
 
 
 if __name__ == "__main__":
-    logger.debug('Empeza o script')
     client = mqtt.Client()
     client.on_connect = on_connect
     client.on_message = on_message
     client.connect("192.168.3.1", 1883, 60)
-    client.publish(xestion['ordes'], 'pausar')        # Estado a Off. Agardamos sinal de On
-    client.publish(difMinimaTemp['difMinima'], '15.0')
 #    client.connect("iot.eclipse.org", 1883, 60)
     
-#    client.loop_start()  #Mellor loop_start, proporciona un fio non bloqueante
-#    client.loop_forever() #loop_forever proporciona un fío bloqueante
-    while True:
-        client.loop(16)
-        t.sleep(1)
-    logger.debug('Remata o script')
+    client.loop_start()  #Mellor loop_start, proporciona un fio non bloqueante
+ #   client.loop_forever() #loop_forever proporciona un fío bloqueante
 

@@ -13,6 +13,13 @@ tipo = np.dtype([('data', 'object'), ('sensor', 'U44'), ('valores', 'object')])
 class Datos:
     def __init__(self):
         self.temp = np.array([], tipo)
+        self.diferenciaMinima = 15.
+        
+    def setDiferenciaMinima(self, delta):
+        self.diferenciaMinima = delta
+        
+    def getDiferenciaMinima(self):
+        return self.diferenciaMinima
     
     def engadir(self, agora, topic, valores):
         condicion = (self.temp['data'] == agora) & \
@@ -55,9 +62,21 @@ class Datos:
             # Calculamos a media de cada sensor para o tempo dado
             ti = ti[~np.isnan(ti)].mean(); tsi = tsi[~np.isnan(tsi)].mean(); te = te[~np.isnan(te)].mean()
             
-            U = hsi * (ti - tsi) / (ti - te)
-            U = np.around(U, decimals=2)
+            deltaInterior = ti - tsi; deltaExterior = ti - te
+            
+            if(float(deltaExterior) >= self.diferenciaMinima):
+                U = hsi * deltaInterior / deltaExterior
+#                U = hsi * (ti - tsi) / (ti - te)
+                U = np.around(U, decimals=2)
+                
+                dtsii = abs(tsi - ti); dtei = abs(te - ti); dtsie = abs(tsi - te)
+                
+                precision = .1
+                erro = precision * ((dtsii + hsi)/dtei + (hsi*(dtsie + dtsii)/dtei**2))
+                erro = round(erro, 2)
+            else:
+                U = None; erro = None
         except ValueError:
-            U = None
-        return(U)
+            U = None; erro = None
+        return(U, erro)
 
